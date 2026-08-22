@@ -1,0 +1,273 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Понедельник, 02:00 UTC (05:00 МСК).
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Ядра нет в публичных remote'ах Conan, поэтому каждая сборка создаёт пакет
+# wasafe из исходников с тем же профилем, что и у проекта: иначе package id не
+# совпадёт и Conan не найдёт бинарь под санитайзером или под s390x.
+env:
+  WASAFE_REPO: gikon3/wasafe
+  WASAFE_REF: main
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.case }}
+    runs-on: ubuntu-24.04
+
+    container:
+      image: ghcr.io/gikon3/cpp-arch:latest
+      options: --cap-add=SYS_PTRACE
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Объёмный round-trip под ASan+UBSan идёт ~12 с на рабочей машине —
+          # таймаут с запасом на медленный раннер и параллельный прогон.
+          - case: asan-ubsan
+            profile: .github/conan/asan-ubsan
+            preset: conan-debug
+            timeout: 120
+          - case: release
+            profile: .github/conan/linux-clang
+            settings: -s build_type=Release
+            preset: conan-release
+            options: -DWASAFE_VCD_BUILD_BENCHMARKS=ON
+            timeout: 30
+          - case: gcc
+            profile: gcc
+            preset: conan-release
+            timeout: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WASAFE_REPO }}
+          ref: ${{ env.WASAFE_REF }}
+          path: .deps/wasafe
+
+      - name: Тулчейн образа
+        id: toolchain
+        run: |
+          cat /etc/cpp-arch-release
+          echo "version=clang$(clang++ -dumpversion | cut -d. -f1)-gcc$(g++ -dumpversion | cut -d. -f1)" >> "$GITHUB_OUTPUT"
+          conan_home=$(conan config home)
+          echo "conan_home=${conan_home:?путь кеша Conan пуст}" >> "$GITHUB_OUTPUT"
+
+      - name: Кеш пакетов Conan
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.toolchain.outputs.conan_home }}
+          key: conan-${{ steps.toolchain.outputs.version }}-${{ matrix.case }}-${{ hashFiles('conanfile.py', '.github/conan/*') }}
+          restore-keys: |
+            conan-${{ steps.toolchain.outputs.version }}-${{ matrix.case }}-
+
+      - name: Собрать пакет wasafe
+        run: conan create .deps/wasafe --build=missing -pr:a ${{ matrix.profile }} ${{ matrix.settings }} -c tools.build:skip_test=True
+
+      - name: Установить зависимости
+        run: conan install . --build=missing -pr:a ${{ matrix.profile }} ${{ matrix.settings }}
+
+      - name: Сконфигурировать
+        run: cmake --preset ${{ matrix.preset }} ${{ matrix.options }}
+
+      - name: Собрать
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Прогнать тесты
+        run: ctest --preset ${{ matrix.preset }} --output-on-failure --parallel $(nproc) --schedule-random --timeout ${{ matrix.timeout }}
+
+      - name: Прогнать бенчмарк
+        if: matrix.case == 'release'
+        run: ./build/Release/bin/wasafe-vcd-bench --mb=16 --stage=all
+
+      - name: Почистить кеш Conan перед сохранением
+        if: always()
+        run: conan cache clean "*" --source --build --temp
+
+  msvc:
+    name: msvc
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WASAFE_REPO }}
+          ref: ${{ env.WASAFE_REF }}
+          path: .deps/wasafe
+
+      - name: Тулчейн раннера
+        id: toolchain
+        run: |
+          cmake --version
+          python -m pip install --disable-pip-version-check --quiet "conan==2.32.0"
+          conan profile detect --force
+          "conan_home=$(conan config home)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "image=$env:ImageVersion"         | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Кеш пакетов Conan
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.toolchain.outputs.conan_home }}
+          key: conan-msvc-${{ steps.toolchain.outputs.image }}-${{ hashFiles('conanfile.py') }}
+          restore-keys: |
+            conan-msvc-${{ steps.toolchain.outputs.image }}-
+
+      - name: Собрать пакет wasafe
+        run: conan create .deps/wasafe --build=missing -s compiler.cppstd=23 -s build_type=Release -c tools.build:skip_test=True
+
+      - name: Установить зависимости
+        run: conan install . --build=missing -s compiler.cppstd=23 -s build_type=Release
+
+      - name: Сконфигурировать
+        run: cmake --preset conan-default
+
+      - name: Собрать
+        run: cmake --build --preset conan-release
+
+      - name: Прогнать тесты
+        run: ctest --preset conan-release --output-on-failure --parallel $env:NUMBER_OF_PROCESSORS --schedule-random --timeout 30
+
+  # Компиляция нативная: s390x-linux-gnu-g++ - обычная x86-программа,
+  # выдающая s390x-код. Под qemu идёт только запуск тестов, через
+  # CMAKE_CROSSCOMPILING_EMULATOR из профиля образа. Разбор и запись значений
+  # раскладывают биты по словам, поэтому порядок байт проверяется отдельно.
+  big-endian:
+    name: big-endian (s390x)
+    runs-on: ubuntu-24.04
+
+    container:
+      image: ghcr.io/gikon3/cpp-cross-s390x:latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WASAFE_REPO }}
+          ref: ${{ env.WASAFE_REF }}
+          path: .deps/wasafe
+
+      - name: Тулчейн образа
+        id: toolchain
+        run: |
+          cat /etc/cpp-cross-s390x-release
+          echo "version=gcc$(s390x-linux-gnu-g++ -dumpversion | cut -d. -f1)" >> "$GITHUB_OUTPUT"
+          conan_home=$(conan config home)
+          echo "conan_home=${conan_home:?путь кеша Conan пуст}" >> "$GITHUB_OUTPUT"
+
+      - name: Кеш пакетов Conan
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.toolchain.outputs.conan_home }}
+          key: conan-s390x-${{ steps.toolchain.outputs.version }}-${{ hashFiles('conanfile.py') }}
+          restore-keys: |
+            conan-s390x-${{ steps.toolchain.outputs.version }}-
+
+      # Два профиля: default - нативный, для сборочного контекста, s390x - хостовый.
+      - name: Собрать пакет wasafe
+        run: conan create .deps/wasafe --build=missing -pr:b default -pr:h s390x -c tools.build:skip_test=True
+
+      - name: Установить зависимости
+        run: conan install . --build=missing -pr:b default -pr:h s390x
+
+      - name: Сконфигурировать
+        run: cmake --preset conan-release
+
+      - name: Собрать
+        run: cmake --build --preset conan-release
+
+      # Архитектура проверяется явно - _ident[EI_DATA] = 2 (MSB), e_machine = 0x0016 (EM_S390).
+      - name: Убедиться, что бинарь big-endian
+        run: |
+          test "$(od -An -tu1 -j5  -N1 build/Release/bin/wasafe-vcd-tests | tr -d ' ')" = 2
+          test "$(od -An -tx1 -j18 -N2 build/Release/bin/wasafe-vcd-tests | tr -d ' ')" = 0016
+
+      - name: Прогнать тесты
+        run: ctest --preset conan-release --output-on-failure --parallel $(nproc) --schedule-random --timeout 300
+
+      - name: Почистить кеш Conan перед сохранением
+        if: always()
+        run: conan cache clean "*" --source --build --temp
+
+  clang-format:
+    name: clang-format
+    runs-on: ubuntu-24.04
+
+    container:
+      image: ghcr.io/gikon3/cpp-arch:latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Проверить форматирование
+        run: |
+          find . -type f -regextype posix-egrep -regex '.*\.(c|cc|cpp|cxx|h|hpp|hxx)$' -print0 | \
+              xargs -0 -r -P $(nproc) -n 16 clang-format --dry-run --Werror
+
+  clang-tidy:
+    name: clang-tidy
+    runs-on: ubuntu-24.04
+
+    container:
+      image: ghcr.io/gikon3/cpp-arch:latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WASAFE_REPO }}
+          ref: ${{ env.WASAFE_REF }}
+          path: .deps/wasafe
+
+      - name: Тулчейн образа
+        id: toolchain
+        run: |
+          cat /etc/cpp-arch-release
+          echo "version=clang$(clang++ -dumpversion | cut -d. -f1)-gcc$(g++ -dumpversion | cut -d. -f1)" >> "$GITHUB_OUTPUT"
+          conan_home=$(conan config home)
+          echo "conan_home=${conan_home:?путь кеша Conan пуст}" >> "$GITHUB_OUTPUT"
+
+      - name: Кеш пакетов Conan
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.toolchain.outputs.conan_home }}
+          key: conan-${{ steps.toolchain.outputs.version }}-tidy-${{ hashFiles('conanfile.py', '.github/conan/*') }}
+          restore-keys: |
+            conan-${{ steps.toolchain.outputs.version }}-tidy-
+
+      - name: Собрать пакет wasafe
+        run: conan create .deps/wasafe --build=missing -pr:a .github/conan/linux-clang -s build_type=Release -c tools.build:skip_test=True
+
+      - name: Установить зависимости
+        run: conan install . --build=missing -pr:a .github/conan/linux-clang -s build_type=Release
+
+      - name: Сконфигурировать
+        run: cmake --preset conan-release -DWASAFE_VCD_BUILD_BENCHMARKS=ON
+
+      # Заголовки ядра подключены как системные, поэтому clang-tidy проверяет
+      # только код этого проекта; .deps/ в compile_commands не попадает.
+      - name: Прогнать clang-tidy
+        run: |
+          run-clang-tidy -j $(nproc) -use-color -p build/Release -quiet \
+              -warnings-as-errors '*' -allow-no-checks -source-filter '^(?!.*/(build|\.deps)/)'
+
+      - name: Почистить кеш Conan перед сохранением
+        if: always()
+        run: conan cache clean "*" --source --build --temp

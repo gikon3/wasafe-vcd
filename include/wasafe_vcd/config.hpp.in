@@ -1,0 +1,12 @@
+#pragma once
+
+#include <string_view>
+
+#include "wasafe_vcd/version.hpp"
+
+namespace WaSafe::Vcd {
+
+inline constexpr std::string_view kDescription{"@PROJECT_DESCRIPTION@"};
+inline constexpr std::string_view kHomePageUrl{"@PROJECT_HOMEPAGE_URL@"};
+
+}  // namespace WaSafe::Vcd

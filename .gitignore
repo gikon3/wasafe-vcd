@@ -1,0 +1,24 @@
+# Окружение
+/.venv/
+
+# Исходники зависимостей, которые CI собирает сам
+/.deps/
+
+# Сборка
+/build/
+/cmake-build-*/
+/out/
+/CMakeUserPresets.json
+
+# Conan
+/conan/
+/test_package/build/
+/test_package/CMakeUserPresets.json
+
+# IDE
+/.vscode/
+/.idea/
+*.user
+
+# Сайдкар-индексы временных диаграмм
+/*.wsfstore

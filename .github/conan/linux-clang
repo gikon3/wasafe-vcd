@@ -1,0 +1,7 @@
+include(clang)
+
+[settings]
+build_type=Debug
+
+[conf]
+tools.info.package_id:confs=["tools.build:cxxflags", "tools.build:cflags", "tools.build:exelinkflags", "tools.build:sharedlinkflags"]

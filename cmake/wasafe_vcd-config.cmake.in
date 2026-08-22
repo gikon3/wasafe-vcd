@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# wasafe::wasafe линкуется PUBLIC, поэтому нужен потребителю.
+find_dependency(wasafe)
+
+include("${CMAKE_CURRENT_LIST_DIR}/wasafe_vcd-targets.cmake")
+
+check_required_components(wasafe_vcd)

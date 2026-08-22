@@ -1,0 +1,15 @@
+# Конфигурация для тестов наследует корневую и ослабляет проверки, которые
+# для тестового кода дают только шум:
+#   * unchecked-optional-access — типичный паттерн ASSERT_TRUE(opt); opt->...;
+#   * function-cognitive-complexity считается без макросов: EXPECT_*/ASSERT_*
+#     разворачиваются в if/else и try/catch, и тест из десятка проверок без
+#     единого собственного ветвления превышал бы порог;
+#   * concurrency-mt-unsafe — тестовый бинарь однопоточный, а setlocale/getenv
+#     нужны, чтобы проверить поведение под другой локалью и настроить замер.
+InheritParentConfig: true
+Checks: >
+  -bugprone-unchecked-optional-access,
+  -concurrency-mt-unsafe
+CheckOptions:
+  - key: readability-function-cognitive-complexity.IgnoreMacros
+    value: true
