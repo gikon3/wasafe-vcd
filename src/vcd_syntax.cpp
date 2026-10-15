@@ -4,7 +4,6 @@
 #include <array>
 #include <charconv>
 #include <cstdlib>
-#include <iterator>
 
 namespace WaSafe::Vcd {
 
@@ -213,12 +212,14 @@ void appendRange(std::string& ref, const TypeDescriptor& t) {
 
     std::array<char, 32> buf{};  // " [" + int32 + ':' + int32 + ']' + align
     char* p = buf.data();
+    // Итератор std::array не обязан быть указателем, а to_chars принимает только указатели.
+    char* const last = buf.data() + buf.size();
 
     *p++ = ' ';
     *p++ = '[';
-    p = std::to_chars(p, std::end(buf), vec->msb()).ptr;
+    p = std::to_chars(p, last, vec->msb()).ptr;
     *p++ = ':';
-    p = std::to_chars(p, std::end(buf), vec->lsb()).ptr;
+    p = std::to_chars(p, last, vec->lsb()).ptr;
     *p++ = ']';
 
     ref.append(buf.data(), p);
