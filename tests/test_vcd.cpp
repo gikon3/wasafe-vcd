@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <wasafe/io/builder.hpp>
 #include <wasafe/io/ingest.hpp>
 #include <wasafe/io/reader.hpp>
@@ -327,7 +328,7 @@ r-2.25e2 !
     EXPECT_DOUBLE_EQ(db.find("top.temp")->valueAt(0).asReal(), 1.5);
     EXPECT_DOUBLE_EQ(db.find("top.temp")->valueAt(10).asReal(), -225.0);
 
-    std::setlocale(LC_NUMERIC, previous.c_str());
+    std::ignore = std::setlocale(LC_NUMERIC, previous.c_str());
 }
 
 // ---------------------------------------------------------------------------

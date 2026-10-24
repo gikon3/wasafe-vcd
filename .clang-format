@@ -3,13 +3,11 @@ AccessModifierOffset: -4
 AlignAfterOpenBracket: DontAlign
 AlignOperands: DontAlign
 AllowAllArgumentsOnNextLine: false
-AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLambdasOnASingleLine: Inline
 AllowShortLoopsOnASingleLine: false
-BinPackArguments: true
-BinPackParameters: true
+AllowShortNamespacesOnASingleLine: true
 BraceWrapping:
     BeforeCatch: true
     BeforeElse: true
@@ -20,7 +18,50 @@ ColumnLimit: 120
 ConstructorInitializerIndentWidth: 8
 ContinuationIndentWidth: 8
 DerivePointerAlignment: false
+EmptyLineBeforeAccessModifier: Always
 IndentWidth: 4
+InsertNewlineAtEOF: true
+IntegerLiteralSeparator:
+    Binary: 4
+    BinaryMinDigits: 4
+    Decimal: 3
+    DecimalMinDigits: 5
+    Hex: 4
+    HexMinDigits: 4
+KeepEmptyLines:
+    AtStartOfFile: false
+MacrosSkippedByRemoveParentheses:
+    - EXPECT_EQ
+    - EXPECT_NE
+    - EXPECT_LT
+    - EXPECT_LE
+    - EXPECT_GT
+    - EXPECT_GE
+    - EXPECT_TRUE
+    - EXPECT_FALSE
+    - EXPECT_DOUBLE_EQ
+    - EXPECT_THROW
+    - ASSERT_EQ
+    - ASSERT_NE
+    - ASSERT_LT
+    - ASSERT_LE
+    - ASSERT_GT
+    - ASSERT_GE
+    - ASSERT_TRUE
+    - ASSERT_FALSE
+    - ASSERT_DOUBLE_EQ
+    - ASSERT_THROW
+    - SCOPED_TRACE
+PackArguments:
+    BinPack: BinPack
 PackConstructorInitializers: BinPack
+PackParameters:
+    BinPack: BinPack
 PointerAlignment: Left
+QualifierAlignment: Left
+RemoveEmptyLinesInUnwrappedLines: true
+RemoveParentheses: ReturnStatement
+RemoveSemicolon: true
+Standard: Latest
 TabWidth: 4
+WrapNamespaceBodyWithEmptyLines: Always

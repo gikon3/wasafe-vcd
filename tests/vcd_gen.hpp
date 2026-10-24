@@ -46,7 +46,7 @@ inline constexpr std::uint32_t kSignals = kScalars + kVectors + kReals;
 }
 
 [[nodiscard]] inline std::uint64_t vectorAt(std::uint32_t i, std::uint64_t step) {
-    const std::uint64_t v = step * 6364136223846793005ULL + std::uint64_t{i} * 2654435761ULL;
+    const std::uint64_t v = step * 6'364'136'223'846'793'005ULL + std::uint64_t{i} * 2'654'435'761ULL;
     const std::uint32_t w = vectorWidth(i);
     return w == 64 ? v : v & ((std::uint64_t{1} << w) - 1);
 }

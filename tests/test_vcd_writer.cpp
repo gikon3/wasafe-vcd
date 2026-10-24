@@ -522,7 +522,7 @@ r1e-300 !
 
     const RoundTrip rt = roundTrip("wasafe_w_locale", kSrc);
 
-    std::setlocale(LC_NUMERIC, previous.c_str());
+    std::ignore = std::setlocale(LC_NUMERIC, previous.c_str());
 
     EXPECT_EQ(countLines(rt.text, "r1.5 !"), 1);
     EXPECT_EQ(countLines(rt.text, "r-225 !"), 1);
