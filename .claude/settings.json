@@ -1,0 +1,16 @@
+{
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "Write|Edit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "jq -r --arg r \"$PWD/\" '(.tool_response.filePath // .tool_input.file_path // \"\") | select(startswith($r) and test(\"\\\\.(cpp|h|hpp)$\"))' | xargs -r -d '\\n' clang-format -i",
+                        "statusMessage": "clang-format"
+                    }
+                ]
+            }
+        ]
+    }
+}

@@ -4,11 +4,15 @@
 HeaderFilterRegex: '.*'
 ExcludeHeaderFilterRegex: '.*/(\.conan2|build)/.*'
 
+# Исправления --fix оформляются по .clang-format проекта.
+FormatStyle: file
+
 Checks:
   - -*
   - bugprone-*
   - -bugprone-easily-swappable-parameters
   - -bugprone-throwing-static-initialization
+  - cert-err33-c
   - clang-analyzer-*
   - -clang-analyzer-webkit.*
   - -clang-analyzer-fuchsia.*
@@ -65,11 +69,9 @@ Checks:
   - -readability-math-missing-parentheses
   - -readability-named-parameter
   - -readability-redundant-access-specifiers
-  - -readability-redundant-member-init
   - -readability-suspicious-call-argument
   - -readability-trailing-comma
   - -readability-uppercase-literal-suffix
-  - -readability-use-std-min-max
 
 CheckOptions:
   # Целочисленные сужения в коде с битами и размерами повсеместны и намеренны;

@@ -38,11 +38,11 @@ namespace WaSafe::Vcd {
 // только на little-endian: там байт с индексом j лежит в разрядах 8j.
 inline constexpr std::size_t kSwarChars = 8;
 inline constexpr bool kSwarUsable = std::endian::native == std::endian::little;
-inline constexpr std::uint64_t kByteOnes = 0x0101010101010101ULL;
-inline constexpr std::uint64_t kByteZeroDigits = 0x3030303030303030ULL;
+inline constexpr std::uint64_t kByteOnes = 0x0101'0101'0101'0101ULL;
+inline constexpr std::uint64_t kByteZeroDigits = 0x3030'3030'3030'3030ULL;
 /// Множитель, собирающий младшие биты восьми байт в один байт так, что первый
 /// байт в памяти (старший разряд значения) становится седьмым битом.
-inline constexpr std::uint64_t kByteGather = 0x8040201008040201ULL;
+inline constexpr std::uint64_t kByteGather = 0x8040'2010'0804'0201ULL;
 
 /// true, если все восемь символов — '0' или '1'.
 [[nodiscard]] inline bool isTwoStateChunk(std::uint64_t chunk) {
